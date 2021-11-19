@@ -1,12 +1,3 @@
-[build]
-target = "x86_64-unknown-uefi"
-out-dir = "mnt/EFI/BOOT"
-
-[target.x86_64-unknown-uefi]
-#runner = "qemu-system-x86_64 -L /usr/share/qemu/ --bios OVMF.fd -drive format=raw,file=fat:rw:mnt"
-runner = "./run-qemu"
-
-[unstable]
-build-std = ["core", "compiler_builtins", "alloc"]
-build-std-features = ["compiler-builtins-mem"]
-unstable-options = true
+[alias]
+kbuild = """build --target x86_64-deepcis_os.json -Z build-std=core \
+    -Z build-std-features=compiler-builtins-mem"""

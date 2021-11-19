@@ -1,7 +1,7 @@
 [package]
-name = "seccamp-2020-os"
+name = "deepcis_os"
 version = "0.1.0"
-authors = ["sksat <sksat@sksat.net>"]
+authors = ["tai <bsns.123456.clg@gmail.com>"]
 edition = "2018"
 
 [profile.dev]
@@ -13,4 +13,4 @@ panic = "abort"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-utf16_literal = "0.2.1"
+bootloader = "0.10.1"
