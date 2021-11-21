@@ -1,5 +1,5 @@
-#![no_std]
 #![no_main]
+#![no_std]
 #![feature(asm)]
 #![feature(start)]
 
@@ -7,14 +7,17 @@
 
 
 use core::panic::PanicInfo;
-use core;
+use bootloader::{BootInfo, boot_info, entry_point};
 
+
+//entry point!のおかげでもうno_mangleやextern C の必要がなくなった
+entry_point!(kernel_main);
 
 
 //no-mangleはRustにはないシステムプログラミングに必要な
 //Cライブラリと同等の機能を使えるようにする。e.g. memcpyなど
-#[no_mangle]
-pub extern "C" fn _start() -> ! {
+
+fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     loop {}
 }
 #[no_mangle]
