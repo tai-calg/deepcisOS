@@ -1,3 +1,4 @@
-# seccamp-2020-os
+# deepcis-os
 
-# このプロジェクトは
+# What is this ? 
+このプロジェクトはblog-osを基調として自作OSをRustによって実装する個人開発プロジェクトです。
