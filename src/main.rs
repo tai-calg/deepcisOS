@@ -4,10 +4,13 @@
 #![feature(start)]
 
 
+mod framebuffer;
+use crate::framebuffer::Drawer;
+use framebuffer::{Color,Point};
 
+use core::{mem,panic::PanicInfo};
+use bootloader::{boot_info::Optional, BootInfo, entry_point};
 
-use core::panic::PanicInfo;
-use bootloader::{BootInfo, boot_info, entry_point};
 
 
 //entry point!のおかげでもうno_mangleやextern C の必要がなくなった
@@ -17,14 +20,24 @@ entry_point!(kernel_main);
 //no-mangleは名前マングリング（コンパイル時に関数名に付加情報を付け足してユニークにすること）を無効にする
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
 
-        let mut value = 0x90;
-        for byte in framebuffer.buffer_mut() {
-            *byte = value;
-            value = value.wrapping_add(1);
+    //画面描画
+    if let Some(framebuffer) = 
+        mem::replace(&mut boot_info.framebuffer, Optional::None).into() {
+        let mut drawer = Drawer::new(framebuffer);
+        for x in drawer.x_range() {
+            for y in drawer.y_range() {
+                drawer.draw(Point::new(x, y), Color::WHITE);
+            }
+        }
+
+        for x in 0..200 {
+            for y in 0..100 {
+                drawer.draw(Point::new(x, y), Color::GREEN);
+            }
         }
     }
+
     loop {
         hlt();
     }

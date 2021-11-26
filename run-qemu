@@ -1,4 +1,4 @@
 #!/bin/sh
-mkdir -p mnt/EFI/BOOT
-cp $1 mnt/EFI/BOOT/BOOTx64.EFI
-qemu-system-x86_64 -L /usr/share/qemu/ --bios OVMF.fd -drive format=raw,file=fat:rw:mnt
+cargo kbuild
+cargo run --package boot 
+qemu-system-x86_64 -drive format=raw,file=./target/x86_64-deepcis_os/debug/boot-uefi-deepcis_os.img -bios ./OVMF-pure-efi.fd
