@@ -5,7 +5,6 @@
 
 
 mod framebuffer;
-use crate::framebuffer::Drawer;
 use framebuffer::{Color,Point};
 
 use core::{mem,panic::PanicInfo};
@@ -22,21 +21,18 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     //画面描画
-    if let Some(framebuffer) = 
-        mem::replace(&mut boot_info.framebuffer, Optional::None).into() {
-        let mut drawer = Drawer::new(framebuffer);
+    let frameBuffer = mem::replace(&mut boot_info.framebuffer, Optional::None)
+    .into_option()
+    .expect("frameBuffer not supported.");
+
+    framebuffer::init(frameBuffer);
+    {
+        let mut drawer = framebuffer::lock_drawer();
         for x in 0..800 {
             for y in drawer.y_range() {
                 drawer.draw(Point::new(x, y), Color::WHITE);
             }
         }
-
-        for x in 0..100 {
-            for y in 0..100 {
-                drawer.draw(Point::new(x, y), Color::GREEN);
-            }
-        }
-
 
     }
 

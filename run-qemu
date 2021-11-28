@@ -1,4 +1,4 @@
 #!/bin/sh
 cargo kbuild
 cargo run --package boot 
-qemu-system-x86_64 -drive format=raw,file=./target/x86_64-deepcis_os/debug/boot-uefi-deepcis_os.img -bios ./OVMF-pure-efi.fd
+qemu-system-x86_64 -drive format=raw,file=./target/x86_64-deepcis_os/debug/boot-uefi-deepcis_os.img -bios /usr/share/OVMF/x64/OVMF.fd
