@@ -1,193 +1,184 @@
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::expect_used)]
+
+use crate::graphics::{Color, Point};
 use bootloader::boot_info::{FrameBuffer, FrameBufferInfo, PixelFormat};
-use spin::Mutex;
-use core::{convert::TryFrom, ops::Range};
-use conquer_once::spin::OnceCell;
+use conquer_once::{spin::OnceCell, TryGetError, TryInitError};
+use core::{convert::TryInto, fmt, ops::Range};
 
+static INFO: OnceCell<FrameBufferInfo> = OnceCell::uninit();
+static DRAWER: OnceCell<spin::Mutex<Drawer>> = OnceCell::uninit();
 
-/// Public Fields and Functions  ///////////////////////////////////////////////
-pub(crate) type Point<T> = Vector2d<T>;
-static INFO : OnceCell<FrameBufferInfo> = OnceCell::uninit();
-static DRAWER: OnceCell<Mutex<Drawer>> = OnceCell::uninit();
-
-
-static RGB_PIXEL_DRAWER: RgbPixelDrawer= RgbPixelDrawer;
-static BGR_PIXEL_DRAWER: BgrPixelDrawer= BgrPixelDrawer;
-static U8_PIXEL_DRAWER: U8PixelDrawer= U8PixelDrawer;
-static UNSUPPORTED_PIXEL_DRAWER: UnsupportedPixelDrawer= UnsupportedPixelDrawer;
-
-pub(crate) fn init(frameBuffer : FrameBuffer)
-{
-    INFO.try_init_once(|| frameBuffer.info()).expect("failed to initialize INFO.");
-    DRAWER.try_init_once(|| Mutex::new(Drawer::new(frameBuffer))).expect("failed to initialize DRAWER.");
+#[derive(Debug)]
+pub(crate) enum InitError {
+    UnsupportedPixelFormat(PixelFormat),
+    AlreadyInit,
+    WouldBlock,
 }
 
-pub(crate) fn info() -> &'static FrameBufferInfo {
-    INFO.try_get().expect("INFO is not initialized.")
-}
-
-pub(crate) fn lock_drawer () -> spin::MutexGuard<'static, Drawer> {
-    // TO DO : consider interrupt
-    DRAWER.try_get().expect("DRAWER is not initialized.").lock()
-}
-
-/// Private Fields and Functions  ///
-
-fn select_pixel_drawer(pixel_format: PixelFormat) -> &'static (dyn PixelDraw + Send + Sync) {
-    match pixel_format {
-        PixelFormat::RGB => &RGB_PIXEL_DRAWER as _,
-        PixelFormat::BGR => &BGR_PIXEL_DRAWER as _,
-        PixelFormat::U8 => &U8_PIXEL_DRAWER as _,
-        _ => &UNSUPPORTED_PIXEL_DRAWER as _,
+impl From<TryInitError> for InitError {
+    fn from(err: TryInitError) -> Self {
+        match err {
+            TryInitError::AlreadyInit => InitError::AlreadyInit,
+            TryInitError::WouldBlock => InitError::WouldBlock,
+        }
     }
 }
 
-
-
-///        //////////////////////////////////////////////////////////////////////
-/// Struct /////////////////////////////////////////////////////////////////////
-///        /////////////////////////////////////////////////////////////////////
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Color {
-    pub(crate) r: u8,
-    pub(crate) g: u8,
-    pub(crate) b: u8,
+impl fmt::Display for InitError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnsupportedPixelFormat(pixel_format) => {
+                write!(f, "unsupported pixel format: {:?}", pixel_format)
+            }
+            Self::AlreadyInit => write!(f, "framebuffer has already been initialized"),
+            Self::WouldBlock => write!(f, "framebuffer is currently being initialized"),
+        }
+    }
 }
 
-pub(crate) struct Vector2d<T> {
-    pub(crate) x: T,
-    pub(crate) y: T,
+pub(crate) fn init(framebuffer: FrameBuffer) -> Result<(), InitError> {
+    let info = framebuffer.info();
+    let pixel_format = info.pixel_format;
+    let pixel_drawer =
+        select_pixel_drawer(pixel_format).ok_or(InitError::UnsupportedPixelFormat(pixel_format))?;
+    let drawer = Drawer {
+        inner: framebuffer,
+        pixel_drawer,
+    };
+    INFO.try_init_once(|| info)?;
+    DRAWER.try_init_once(|| spin::Mutex::new(drawer))?;
+    Ok(())
+}
+
+#[derive(Debug)]
+pub(crate) enum AccessError {
+    Uninit,
+    WouldBlock,
+}
+
+impl fmt::Display for AccessError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AccessError::Uninit => write!(f, "framebuffer is uninitialized"),
+            AccessError::WouldBlock => write!(f, "framebuffer is currently being initialized"),
+        }
+    }
+}
+
+impl From<TryGetError> for AccessError {
+    fn from(err: TryGetError) -> Self {
+        match err {
+            TryGetError::Uninit => Self::Uninit,
+            TryGetError::WouldBlock => Self::WouldBlock,
+        }
+    }
+}
+
+pub(crate) fn info() -> Result<&'static FrameBufferInfo, AccessError> {
+    Ok(INFO.try_get()?)
+}
+
+pub(crate) fn lock_drawer() -> Result<spin::MutexGuard<'static, Drawer>, AccessError> {
+    // TODO: consider interrupts
+    Ok(DRAWER.try_get()?.lock())
+}
+
+#[derive(Debug)]
+pub(crate) enum DrawError {
+    InvalidPoint(Point<usize>),
+}
+
+impl fmt::Display for DrawError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DrawError::InvalidPoint(p) => write!(f, "invalid point: {}", p),
+        }
+    }
 }
 
 pub(crate) struct Drawer {
-    inner : FrameBuffer,
+    inner: FrameBuffer,
     pixel_drawer: &'static (dyn PixelDraw + Send + Sync),
 }
-#[derive(Debug, Clone, Copy)]
-struct RgbPixelDrawer;
-struct BgrPixelDrawer;
-struct U8PixelDrawer;
-struct UnsupportedPixelDrawer;
-
-
-
-/// Trait //////////////////////////////////////////////////////////////////////
-trait PixelDraw {
-    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) -> bool;
-}
-
-
-/// Implimentation /////////////////////////////////////////////////////////////
-
-#[allow(dead_code)]
-impl Color {
-    pub(crate) const BLACK: Self = Color::new(0, 0, 0);
-    pub(crate) const WHITE: Self = Color::new(255, 255, 255);
-    pub(crate) const RED : Self = Color::new(255, 0, 0);
-    pub(crate) const GREEN: Self = Color::new(0, 255, 0);
-    pub(crate) const BLUE: Self = Color::new(0, 0, 255);
-    
-}
-
-impl Color {
-    pub(crate) const fn new(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
-    }
-
-    pub(crate) fn to_grayscale(self) -> u8 {
-        u8::try_from((u16::from(self.r) + u16::from(self.g) + u16::from(self.b)) / 3).unwrap()
-    }
-}
-
-impl<T> Vector2d<T> {
-    pub(crate) const fn new(x: T, y: T) -> Self {
-        Self { x, y }
-    }
-
-}
-
 
 impl Drawer {
-    pub(crate) fn new (inner : FrameBuffer) -> Self {
-        let pixel_drawer = select_pixel_drawer(inner.info().pixel_format);
-        Self {
-            inner,
-            pixel_drawer,
-        }
-    }
-    
     pub(crate) fn info(&self) -> FrameBufferInfo {
         self.inner.info()
     }
 
     pub(crate) fn x_range(&self) -> Range<usize> {
-        0..self.info().horizontal_resolution 
+        0..self.info().horizontal_resolution
     }
 
     pub(crate) fn y_range(&self) -> Range<usize> {
-        0..self.info().vertical_resolution 
+        0..self.info().vertical_resolution
     }
 
-    pub(crate) fn draw<T>(&mut self, point: Point<T>, color: Color)-> bool
-    where
-        usize: TryFrom<T>, 
-    {
-        let pixel_index = match self.pixel_index(point) {
-            Some(point) => point,
-            None => return false,
-        };
-
-        self.pixel_drawer.pixel_draw(self.inner.buffer_mut(), pixel_index, color)
-
+    pub(crate) fn draw(&mut self, p: Point<usize>, c: Color) -> Result<(), DrawError> {
+        let pixel_index = self.pixel_index(p).ok_or(DrawError::InvalidPoint(p))?;
+        self.pixel_drawer
+            .pixel_draw(self.inner.buffer_mut(), pixel_index, c);
+        Ok(())
     }
 
+    fn pixel_index(&self, p: Point<usize>) -> Option<usize> {
+        let FrameBufferInfo {
+            bytes_per_pixel,
+            stride,
+            ..
+        } = self.info();
 
-    fn pixel_index<T> (&self, point: Point<T>) -> Option<usize>
-    where
-        usize: TryFrom<T>,
-        {
-            let FrameBufferInfo {
-                bytes_per_pixel,
-                stride,
-                ..
-            } = self.info();
-
-            let x = usize::try_from(point.x).ok()?;
-            let y = usize::try_from(point.y).ok()?;
-            if !self.x_range().contains(&x) || !self.y_range().contains(&y) {
-                return None;
-            }
-
-            Some((y * stride) + (x * bytes_per_pixel))
+        let Point { x, y } = p.try_into().ok()?;
+        if !self.x_range().contains(&x) || !self.y_range().contains(&y) {
+            return None;
         }
+        Some((y * stride + x) * bytes_per_pixel)
+    }
 }
 
+trait PixelDraw {
+    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color);
+}
+
+fn select_pixel_drawer(
+    pixel_format: PixelFormat,
+) -> Option<&'static (dyn PixelDraw + Send + Sync)> {
+    match pixel_format {
+        PixelFormat::RGB => Some(&RGB_PIXEL_DRAWER as _),
+        PixelFormat::BGR => Some(&BGR_PIXEL_DRAWER as _),
+        PixelFormat::U8 => Some(&U8_PIXEL_DRAWER as _),
+        _ => None,
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RgbPixelDrawer;
+static RGB_PIXEL_DRAWER: RgbPixelDrawer = RgbPixelDrawer;
 impl PixelDraw for RgbPixelDrawer {
-    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) -> bool {
+    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) {
         buffer[pixel_index] = c.r;
         buffer[pixel_index + 1] = c.g;
         buffer[pixel_index + 2] = c.b;
-        true
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+struct BgrPixelDrawer;
+static BGR_PIXEL_DRAWER: BgrPixelDrawer = BgrPixelDrawer;
 impl PixelDraw for BgrPixelDrawer {
-    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) -> bool {
+    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) {
         buffer[pixel_index] = c.b;
         buffer[pixel_index + 1] = c.g;
         buffer[pixel_index + 2] = c.r;
-        true
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+struct U8PixelDrawer;
+static U8_PIXEL_DRAWER: U8PixelDrawer = U8PixelDrawer;
 impl PixelDraw for U8PixelDrawer {
-    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) -> bool {
+    fn pixel_draw(&self, buffer: &mut [u8], pixel_index: usize, c: Color) {
         buffer[pixel_index] = c.to_grayscale();
-        true
     }
 }
-impl PixelDraw for UnsupportedPixelDrawer {
-    fn pixel_draw(&self, _buffer: &mut [u8], _pixel_index: usize, _c: Color) -> bool {
-        false
-    }
-}
-
-
-
