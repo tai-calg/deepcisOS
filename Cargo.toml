@@ -3,6 +3,7 @@ name = "deepcis_os"
 version = "0.1.0"
 authors = ["tai <bsns.123456.clg@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [profile.dev]
 panic = "abort"

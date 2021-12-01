@@ -44,7 +44,7 @@ pub(crate) struct Rectangle<T> {
     pub(crate) size : Size<T>,
 }
 impl<T> Rectangle<T> {
-    pub(crate) fn new(pos: Point<T>, size : Size<T>)-> Self {
+    pub(crate) const  fn new(pos: Point<T>, size : Size<T>)-> Self {
         Self{pos,size}
     }
 }
@@ -58,7 +58,7 @@ where
 }
 impl<T> Rectangle<T> 
 where 
-    T : Copy+ Add<Output=T>,
+    T : Copy+ Add<Output=T>, //この辺のトレイト境界の設定の基準わからん→消してみたら結構わかる
 {
     pub(crate) fn x_range(&self) -> Range<T> {
         self.pos.x..(self.pos.x+ self.size.x)
@@ -135,7 +135,7 @@ pub(crate) struct Vector2d<T> {
 }
 
 impl<T> Vector2d<T> {
-    pub(crate) fn new(x: T, y: T) -> Self {
+    pub(crate) const fn new(x: T, y: T) -> Self {
         Self { x, y }
     }
 }
@@ -158,5 +158,21 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
+    }
+}
+
+/// DrawErrorExt ///
+pub(crate) trait DrawErrorExt {
+    fn ignore_out_of_range(self, ignore: bool) -> Self;
+}
+
+impl DrawErrorExt for Result<(), DrawError> {
+    fn ignore_out_of_range(self, ignore: bool) -> Self {
+        if ignore {
+            if let Err(DrawError::PointOutArea(_)) = &self {
+                return Ok(());
+            }
+        }
+        self
     }
 }
