@@ -22,7 +22,7 @@ fn build_ascii_font()-> Result<()> {
     let output = File::create(output_path)?;
     let mut output = BufWriter::new(output);
 
-    //writeln : arg1 にappend式に書き込んでいく（\nをつけながら）
+    //writeln : arg1 にappend方式で書き込んでいく（\nをつけながら）
     writeln!(
         &mut output , 
         "pub(crate) const ASCII_FONT : [[u8;16]; 256]= ["
@@ -37,6 +37,7 @@ fn build_ascii_font()-> Result<()> {
             continue;
         }
 
+        //引数と引数の前の文字列を捨てる
         if let Some(rest) = line.strip_prefix("0x") {
             let (index_str, ch_str) = rest.split_at(2);
             let index = usize::from_str_radix(index_str, 16).unwrap();
@@ -53,6 +54,7 @@ fn build_ascii_font()-> Result<()> {
                 }
 
                 let mut output_num = 0;
+                //chars で文字列をイテレートできる配列型に変換
                 for ch in line.chars() {
                     let bit = match ch {
                         '.' => 0,

@@ -4,12 +4,15 @@
 
 use crate::graphics::{Color, Point,Size};
 use bootloader::{boot_info::Optional, entry_point, BootInfo};
+use console::Console;
 use graphics::{Draw, Rectangle};
-use core::mem;
+use core::{fmt::{Write}, mem};
+use font::StringDrawer;
 
 mod font;
 mod framebuffer;
 mod graphics;
+mod console;
 
 entry_point!(kernel_main);
 
@@ -33,9 +36,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         drawer.draw(p, Color::RED).expect("failed to draw Red");
     }
 
-    for (i,ch) in (0.. ).zip(('!'..= '~').chain('あ'..'お')) {
-        font::draw_char(&mut *drawer, Point::new(8 * i, 50), ch, Color::BLACK, false)
-            .expect("fail to drew ascii");
+
+    //文字描画
+    let mut console = Console::new(&mut *drawer, Color::BLACK, Color::WHITE);
+
+    for i in 0..80 {
+        writeln!(&mut console, "line {}",i).expect("failed to draw");
     }
 
 

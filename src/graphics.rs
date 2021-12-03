@@ -14,7 +14,11 @@ use core::{
 pub(crate) trait Draw {
     fn area(&self) -> Rectangle<i32>;
     fn draw (&mut self, p: Point<i32> , c : Color) -> Result<(), DrawError>;
-    
+    fn fill_rect(&mut self, rect : Rectangle<i32> , c:Color) {
+        for p in rect.points(){
+            self.draw(p, c);
+        }
+    }
 }
 static_assertions::assert_obj_safe!(Draw);
 
@@ -73,6 +77,7 @@ where
     T: Copy + Add<Output=T>, 
     Range<T>: Iterator<Item = T>
 {
+    //Ponit<T>　のItemを持っているIteratorのみにたいしてpoints()メソッドを追加
     pub(crate) fn points(self) -> impl Iterator<Item = Point<T>> {
         self.x_range().flat_map(move |x| iter::repeat(x).zip(self.y_range()))
         .map(|(x,y)| Point::new(x,y))
