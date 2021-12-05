@@ -97,6 +97,11 @@ pub(crate) fn lock_drawer() -> Result<spin::MutexGuard<'static, Drawer>, AccessE
     Ok(DRAWER.try_get()?.lock())
 }
 
+pub(crate) fn try_lock_drawer() -> Result<Option<spin::MutexGuard<'static, Drawer>>, AccessError> {
+    // TODO : consider interupts
+    Ok(DRAWER.try_get()?.try_lock())
+}
+
 
 
 pub(crate) struct Drawer {
@@ -118,10 +123,10 @@ impl Draw for Drawer {
             size: Point::new(self.width, self.height),
         }
     }
-    fn draw(&mut self, p: Point<i32>, c : Color) -> Result<(), DrawError> {
-        let pixel_index = self.pixel_index(p).ok_or(DrawError::PointOutArea(p))?;
-        self.pixel_drawer.pixel_draw(self.framebuffer.buffer_mut(), pixel_index, c);
-        Ok(())
+    fn draw(&mut self, p: Point<i32>, c : Color) {
+        if let Some(pixel_index) = self.pixel_index(p){
+            self.pixel_drawer.pixel_draw(self.framebuffer.buffer_mut(), pixel_index, c)
+        }
     }
 }
 impl Drawer {

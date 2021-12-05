@@ -4,10 +4,9 @@
 
 use crate::graphics::{Color, Point,Size};
 use bootloader::{boot_info::Optional, entry_point, BootInfo};
-use console::Console;
 use graphics::{Draw, Rectangle};
-use core::{fmt::{Write}, mem};
-use font::StringDrawer;
+use core::{ mem};
+
 
 mod font;
 mod framebuffer;
@@ -23,26 +22,35 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     framebuffer::init(framebuffer).expect("failed to initialize framebuffer");
 
     //Drawer をMutexにしていじれるのはただ一つにしてからDrawerを生成
-    let mut drawer = framebuffer::lock_drawer().expect("failed to get framebuffer");
 
+    {
+        let mut drawer = framebuffer::lock_drawer().expect("failed to get framebuffer");
+        let screen_rect = drawer.area();
+        drawer.fill_rect(screen_rect, Color::WHITE);
+        let green_rect = Rectangle::new(Point::new(0, 0), Size::new(200, 100));
+        drawer.fill_rect(green_rect, Color::GREEN);
 
-    for p in drawer.area().points(){
-        drawer.draw(p, Color::WHITE).expect("fail to draw");
     }
+
+    println!("hello world!");
+    for i in 0..100 {
+        println!("Hello {}",i);
+    }
+
+    //for p in drawer.area().points(){
+    //    drawer.draw(p, Color::WHITE).expect("fail to draw");
+    //}
 
     //これが長方形を生成
-    let rect = Rectangle::new(Point::new(300,200), Size::new(200,200));
-    for p in rect.points() {
-        drawer.draw(p, Color::RED).expect("failed to draw Red");
-    }
+    //let rect = Rectangle::new(Point::new(300,200), Size::new(200,200));
+    //for p in rect.points() {
+    //    drawer.draw(p, Color::RED).expect("failed to draw Red");
+    //}
 
 
     //文字描画
-    let mut console = Console::new(&mut *drawer, Color::BLACK, Color::WHITE);
 
-    for i in 0..80 {
-        writeln!(&mut console, "line {}",i).expect("failed to draw");
-    }
+
 
 
     loop {}

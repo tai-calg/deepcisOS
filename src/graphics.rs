@@ -4,8 +4,10 @@
 use core::{
     convert::TryFrom,
     fmt, iter,
-    ops::{Add, Range},
+    ops::{Add, Range, Sub},
 };
+
+
 
 
 
@@ -13,7 +15,7 @@ use core::{
 // draw and drawerror // 
 pub(crate) trait Draw {
     fn area(&self) -> Rectangle<i32>;
-    fn draw (&mut self, p: Point<i32> , c : Color) -> Result<(), DrawError>;
+    fn draw (&mut self, p: Point<i32> , c : Color);
     fn fill_rect(&mut self, rect : Rectangle<i32> , c:Color) {
         for p in rect.points(){
             self.draw(p, c);
@@ -42,7 +44,8 @@ pub(crate) type Point<T> = Vector2d<T>;
 pub(crate) type Size<T> = Vector2d<T>;
 
 
-/// retangle /// 
+        /// retangle /// 
+#[derive(Debug, Clone, Copy,PartialEq,Eq)]
 pub(crate) struct Rectangle<T> {
     pub(crate) pos : Point<T>,
     pub(crate) size : Size<T>,
@@ -52,6 +55,7 @@ impl<T> Rectangle<T> {
         Self{pos,size}
     }
 }
+
 impl<T> Rectangle<T> 
 where 
     T :Copy + Add<Output = T> + PartialOrd
@@ -60,15 +64,60 @@ where
         self.x_range().contains(&p.x) && self.y_range().contains(&p.y)
     }
 }
+
+impl<T> Rectangle<T>
+where T: Copy + Ord + Sub<Output = T>,
+{
+    //2point もらってrectを返す
+    pub(crate) fn from_points(p0: Point<T>, p1: Point<T>)-> Self {
+        let xstart = T::min(p0.x,p1.x);
+        let ystart = T::min(p0.y,p1.y);
+        let xend = T::max(p0.x, p1.x);
+        let yend = T::max(p0.y, p1.y);
+        Rectangle {
+            pos: Point::new(xstart,xend),
+            size : Size::new(xend - xstart, yend - ystart)
+        }
+    }
+}
+impl<T> Rectangle<T>
+where T: Copy + Add<Output=T> + Sub<Output = T> + Ord, 
+{
+    pub(crate) fn extend_to_contain(&self, p:Point<T>) -> Rectangle<T> {
+        let xstart = T::min(p.x, self.x_start());
+        let ystart = T::min(p.y, self.y_start());
+        let xend = T::max(p.x, self.x_end());
+        let yend = T::max(p.y, self.y_end());
+        Rectangle {
+            pos : Point::new(xstart, ystart),
+            size : Size::new(xend - xstart, yend - ystart ),
+        }
+    }
+}
+
+
 impl<T> Rectangle<T> 
 where 
     T : Copy+ Add<Output=T>, //この辺のトレイト境界の設定の基準わからん→消してみたら結構わかる
 {
+    pub(crate) fn x_start(&self)->T {
+        self.pos.x
+    }
+    pub(crate) fn y_start(&self)->T {
+        self.pos.y
+    }
+    pub(crate) fn x_end(&self) -> T {
+        self.pos.x + self.size.x
+    }
+    pub(crate) fn y_end(&self) -> T {
+        self.pos.y + self.size.y
+    }
+
     pub(crate) fn x_range(&self) -> Range<T> {
-        self.pos.x..(self.pos.x+ self.size.x)
+        self.x_start()..self.x_end()
     }
     pub(crate) fn y_range(&self) -> Range<T> {
-        self.pos.y..(self.pos.y+ self.size.y)
+        self.y_start()..self.y_end()
     }
 }
 
@@ -84,7 +133,7 @@ where
     }
 }
 
-// color // 
+        /// color ///
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Color {
