@@ -21,6 +21,22 @@ pub(crate) trait Draw {
             self.draw(p, c);
         }
     }
+
+    fn draw_rect (&mut self, rect : Rectangle<i32>, c : Color) {
+        if rect.size.x == 0 || rect.size.y == 0 {
+            return;
+        }
+
+        for x in rect.x_range() {
+            self.draw(Point::new(x, rect.y_start()), c);
+            self.draw(Point::new(x, rect.y_end() -1), c);
+        }
+
+        for y in rect.y_range() {
+            self.draw(Point::new(rect.x_start(), y), c);
+            self.draw(Point::new(rect.x_end() -1,y ),c);
+        }
+    }
 }
 static_assertions::assert_obj_safe!(Draw);
 
@@ -107,7 +123,7 @@ where
         self.pos.y
     }
     pub(crate) fn x_end(&self) -> T {
-        self.pos.x + self.size.x
+        self.pos.x + self.size.x 
     }
     pub(crate) fn y_end(&self) -> T {
         self.pos.y + self.size.y

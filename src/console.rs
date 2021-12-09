@@ -31,7 +31,7 @@ pub fn _print(args: fmt::Arguments) {
     if let Ok(Some(mut framebuffer)) = framebuffer::try_lock_drawer() {
         if let Some(mut console) = CONSOLE.try_lock() {
             #[allow(clippy::unwrap_used)]
-            console.writer(&mut *framebuffer).write_fmt(args).unwrap();
+            console.create_writer(&mut *framebuffer).write_fmt(args).unwrap();
         }
     }
 }
@@ -58,7 +58,7 @@ pub(crate) struct Console
 
 impl Console  {
 
-    pub(crate) fn writer<'d, 'c, D>(&'c mut self, drawer:&'d mut D)-> ConsoleWriter<'d, 'c,D> {
+    pub(crate) fn create_writer<'d, 'c, D>(&'c mut self, drawer:&'d mut D)-> ConsoleWriter<'d, 'c,D> {
         ConsoleWriter {
             drawer,
             console:self,
@@ -104,11 +104,6 @@ impl Console  {
             pos: Point::new(0,0),
             size : Size::new(COLUMNS, ROWS),
         };
-        //座標０、画面全体をおおうRect作る
-        //let draw_area = Rectangle {
-        //    pos: Point::new(0,0),
-        //    size: Size::new(COLUMNS_I32 * fontsize.x , ROWS_I32* fontsize.y),
-        //};
     }    
     
 }
@@ -158,7 +153,7 @@ impl RedrawArea {
     fn add(&mut self, p : Point<usize>) {
         if self.area.size.x == 0 || self.area.size.y == 0 { // ?
             self.area.pos = p;
-            self.area.size = Size::new(1, 1);
+            self.area.size = Size::new(1,1);
             return;
         }
         self.area = self.area.extend_to_contain(p);
@@ -181,9 +176,9 @@ where D:Draw
             let xrange = redraw.area.x_range();
             let console_p = Point::new(redraw.area.x_start(), console_y);
 
-            let bytes = &self.console.buffer[console_y][xrange];
+            let bytes = &self.console.buffer[console_y][xrange]; //&はアドレスを渡してると思えばいい
             let draw_p = self.to_draw_point(console_p);
-            font::draw_byte_string(self.drawer, draw_p, bytes, self.console.fg_color);
+            font::draw_byte_string(self.drawer, draw_p, bytes, self.console.fg_color);//一行書く（関数内でｘのloopは回してる）
         }
 
 

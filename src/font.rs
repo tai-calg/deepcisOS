@@ -2,7 +2,6 @@ use crate::{graphics::{Color,Draw,  Point, Rectangle, Size}};
 
 use core::{convert::TryFrom, fmt};
 
-const FONT_SIZE_I32: Size<i32> = Size::new(8,16);
 pub(crate) const FONT_PIXEL_SIZE: Size<i32> = Size::new(8, 16);
 
 include!(concat!(env!("OUT_DIR"), "/ascii_font.rs"));
@@ -51,7 +50,7 @@ where D :Draw
 
 pub(crate) fn char_to_byte (ch: char) -> u8 {
     let codepoint = u32::from(ch);
-    u8::try_from(codepoint).unwrap_or(b'?')
+    u8::try_from(codepoint).unwrap_or(b'#')
 }
 
 //StringDrawと同じ機能だが一応作っておく
@@ -101,7 +100,7 @@ where D : Draw,
     fn write_str (&mut self, s: &str) -> fmt::Result {
         for ch in s.chars() {
             draw_char(self.drawer, self.pos, ch, self.color);
-            self.pos.x += FONT_SIZE_I32.x;
+            self.pos.x += FONT_PIXEL_SIZE.x;
         }
 
         Ok(())

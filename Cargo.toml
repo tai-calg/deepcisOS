@@ -18,6 +18,11 @@ bootloader = "0.10.9"
 conquer-once = {version = "0.3.2", default-features = false}
 spin = "0.9.0"
 static_assertions = "1.1.0"
+x86_64 = "0.14.1"
 
 [workspace]
 members = ["boot"]
+
+
+[package.metadata.bootloader]
+map-physical-memory = true
