@@ -17,14 +17,11 @@ const  BYTES_PER_FRAME: u64 = kib(4);
 const MAX_PHYDICAL_MEMORY_BYTE: u64 = gib(128);
 const FRAME_COUNT: u64 = MAX_PHYDICAL_MEMORY_BYTE / BYTES_PER_FRAME; //frameの数
 
-type Mapline = u64;
+type Mapline = u64; //mapline?
 const BITS_PER_MAP_LINE:u64 = Mapline::BITS as u64;
 const ALLOC_MAP_LEN : usize = (FRAME_COUNT / (BYTES_PER_FRAME as u64 )) as usize;
 
-pub(crate) struct BitmapMemoryManager {
-    alloc_map : [Mapline; ALLOC_MAP_LEN],
-    range : PhysFrameRange,
-}
+
 
 static  MEMORY_MANAGER: spin::Mutex<BitmapMemoryManager> = spin::Mutex::new(BitmapMemoryManager {
     alloc_map: [0;ALLOC_MAP_LEN],
@@ -38,7 +35,10 @@ static  MEMORY_MANAGER: spin::Mutex<BitmapMemoryManager> = spin::Mutex::new(Bitm
 pub(crate) fn lock_memory_manager() -> spin::MutexGuard<'static , BitmapMemoryManager> {
     MEMORY_MANAGER.lock()
 }
-
+pub(crate) struct BitmapMemoryManager {
+    alloc_map : [Mapline; ALLOC_MAP_LEN],
+    range : PhysFrameRange,
+}
 impl BitmapMemoryManager {
     pub(crate) fn init(&mut self, regions: impl IntoIterator<Item = MemoryRegion>,)
     ->core::result::Result<(), AddressNotAligned>

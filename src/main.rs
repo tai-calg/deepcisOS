@@ -11,6 +11,8 @@ use x86_64::{VirtAddr, structures::paging::Translate};
 use core::{ mem};
 
 
+mod prelude;
+mod mouse;
 mod font;
 mod framebuffer;
 mod graphics;
@@ -19,6 +21,7 @@ mod paging;
 mod desktop;
 mod error;
 mod memory;
+mod pci;
 
 struct MemoryRegions<'a> {
     regions: core::slice::Iter<'a, MemoryRegion>,
@@ -100,6 +103,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 
         println!("welcome to deepcisOS !  ");
+    
+    mouse::draw_cursor().expect("failed to draw mouse");
 
     for region in MemoryRegions::new(&* boot_info.memory_regions)
     {

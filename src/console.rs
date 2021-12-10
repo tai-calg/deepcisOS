@@ -3,7 +3,7 @@
 
 use crate::{
     font,framebuffer,
-    graphics::{Color, Draw, Point, Rectangle, Size},
+    graphics::{Color, Draw, Point, Rectangle, Size}, desktop,
 };
 use core::{convert::TryFrom, fmt};
 
@@ -40,8 +40,8 @@ pub fn _print(args: fmt::Arguments) {
 
 static CONSOLE: spin::Mutex<Console> = spin::Mutex::new(Console {
     buffer: [[0; COLUMNS];ROWS],
-    fg_color:Color::BLACK,
-    bg_color: Color::WHITE,
+    fg_color: desktop::FG_COLOR,
+    bg_color: desktop::BG_COLOR,
     cursor: Point::new(0,0),
 });
 

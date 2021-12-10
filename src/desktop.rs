@@ -5,7 +5,7 @@ use crate::{
 };
 
 pub(crate) const BG_COLOR : Color = Color::new(45, 118, 237);
-pub(crate) const FG_WHITE : Color = Color::WHITE;
+pub(crate) const FG_COLOR : Color = Color::WHITE;
 
 pub(crate) fn draw()->  Result<()> {
     let screen = *framebuffer::info()?;
