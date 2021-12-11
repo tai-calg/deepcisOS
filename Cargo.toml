@@ -5,6 +5,7 @@ authors = ["tai <bsns.123456.clg@gmail.com>"]
 edition = "2018"
 build = "build.rs"
 
+
 [profile.dev]
 panic = "abort"
 
@@ -21,9 +22,10 @@ static_assertions = "1.1.0"
 x86_64 = "0.14.1"
 arrayvec = {version = "0.7.0" ,default-features = false}
 bit_field = "0.10.1"
+mikanos_usb = {path = "./mikanos_usb"}
 
 [workspace]
-members = ["boot"]
+members = ["boot", "mikanos_usb"]
 
 
 [package.metadata.bootloader]

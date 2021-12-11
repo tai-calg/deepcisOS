@@ -39,6 +39,8 @@ pub(crate) enum ErrorKind {
     WouldBlock(&'static str),
     Full,
     NotEnoughMemory,
+    XhcNotFound,
+    IndexOutofRange,
 }
 
 impl fmt::Display for ErrorKind {
