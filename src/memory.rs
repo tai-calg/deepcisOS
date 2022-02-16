@@ -1,7 +1,7 @@
-use crate::{bail,error::{ErrorKind,Result}};
+use crate::prelude::*;
 use bootloader::boot_info::{MemoryRegion,MemoryRegionKind};
 use core::{cmp, num};
-use x86_64::{structures::paging::{frame::PhysFrameRange, page::AddressNotAligned,PhysFrame},PhysAddr};
+use x86_64::{structures::paging::{frame::PhysFrameRange, FrameAllocator,Size4KiB ,PhysFrame},PhysAddr};
 
 const fn kib(kib: u64)-> u64 {
     kib * 1024
@@ -13,7 +13,7 @@ const fn gib(gib: u64)-> u64 {
     gib * mib(1024)
 }
 
-const  BYTES_PER_FRAME: u64 = kib(4);
+pub(crate) const BYTES_PER_FRAME: u64 = kib(4);
 const MAX_PHYDICAL_MEMORY_BYTE: u64 = gib(128);
 const FRAME_COUNT: u64 = MAX_PHYDICAL_MEMORY_BYTE / BYTES_PER_FRAME; //frameの数
 
@@ -32,16 +32,19 @@ static  MEMORY_MANAGER: spin::Mutex<BitmapMemoryManager> = spin::Mutex::new(Bitm
     }},
 });
 
-pub(crate) fn lock_memory_manager() -> spin::MutexGuard<'static , BitmapMemoryManager> {
-    MEMORY_MANAGER.lock()
+
+pub(crate) fn lock_memory_manager() -> Result<spin::MutexGuard<'static, BitmapMemoryManager>> {
+    MEMORY_MANAGER
+        .try_lock()
+        .ok_or_else(|| make_error!(ErrorKind::WouldBlock("MEMORY_MANAGER")))
 }
+
 pub(crate) struct BitmapMemoryManager {
     alloc_map : [Mapline; ALLOC_MAP_LEN],
     range : PhysFrameRange,
 }
 impl BitmapMemoryManager {
-    pub(crate) fn init(&mut self, regions: impl IntoIterator<Item = MemoryRegion>,)
-    ->core::result::Result<(), AddressNotAligned>
+    pub(crate) fn init (&mut self, regions: impl IntoIterator<Item = MemoryRegion>)->Result<()> 
     {
         let mut available_start = self.range.start;
         let mut available_end = self.range.end;
@@ -76,7 +79,7 @@ impl BitmapMemoryManager {
         loop{
             let endframe = start_frame +num_frames as u64;
             if endframe > self.range.end {
-                bail!(ErrorKind::NotEnoughMemory);
+                bail!(ErrorKind::NoEnoughMemory);
             }
 
             let range = PhysFrame::range(start_frame,endframe );
@@ -121,3 +124,10 @@ impl BitmapMemoryManager {
         }
     }
 } 
+
+unsafe impl FrameAllocator<Size4KiB> for BitmapMemoryManager {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        self.allocate(1).map(|range| range.start).ok()
+    }
+
+}

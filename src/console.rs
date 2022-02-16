@@ -28,7 +28,7 @@ macro_rules! println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write as _; //?
-    if let Ok(Some(mut framebuffer)) = framebuffer::try_lock_drawer() {
+    if let Ok(mut framebuffer) = framebuffer::lock_drawer() {
         if let Some(mut console) = CONSOLE.try_lock() {
             #[allow(clippy::unwrap_used)]
             console.create_writer(&mut *framebuffer).write_fmt(args).unwrap();

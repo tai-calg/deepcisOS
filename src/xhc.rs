@@ -1,19 +1,22 @@
 use crate::{
-    pci::{self, Device, Devices},
+    memory, mouse,
+    pci::{self, Device},
     prelude::*,
 };
-
 use mikanos_usb as usb;
+use x86_64::{
+    structures::paging::{Mapper, OffsetPageTable, Page, PhysFrame},
+    PhysAddr, VirtAddr,
+};
 
-// =================== const or static =================== //
-
-
-
-// =================== public =================== //
-pub(crate) fn init(devices: &[Device]) -> Result<()> {
+pub(crate) fn init(
+    devices: &[Device],
+    mapper: &mut OffsetPageTable,
+) -> Result<&'static mut usb::xhci::Controller> {
     let mut xhc_dev = None;
     for dev in devices {
-        if dev.class_code.test3(0x0c,0x03,0x30){
+        // is the device is xHC?
+        if dev.class_code.test3(0x0c, 0x03, 0x30) {
             xhc_dev = Some(dev);
 
             if dev.vender_id == 0x8086 {
@@ -31,20 +34,55 @@ pub(crate) fn init(devices: &[Device]) -> Result<()> {
     let xhc_mmio_base = xhc_bar & !0xf;
     debug!("xHC mmio_base = {:08x}", xhc_mmio_base);
 
-    unsafe {
-        // page fault occurs... xhc_mmio_base is not mapped to virtual memory
-        let _xhc = usb::xhc_controller_new(xhc_mmio_base);
-        //xhc.init();
+    map_xhc_mmio(mapper, xhc_mmio_base)?;
+
+    let xhc = unsafe { usb::xhci::Controller::new(xhc_mmio_base) };
+
+    if xhc_dev.vender_id == 0x8086 {
+        switch_ehci_to_xhci(devices, xhc_dev);
     }
 
+    xhc.init();
+    debug!("xhc starting");
+    xhc.run()?;
 
-    warn!("OK");
+    usb::HidMouseDriver::set_default_observer(mouse::observer);
+
+    xhc.configure_connected_ports();
+
+    Ok(xhc)
+}
+
+fn map_xhc_mmio(mapper: &mut OffsetPageTable, xhc_mmio_base: u64) -> Result<()> {
+    // Map [xhc_mmio_base..(xhc_mmio_base+64kib)] as identity map
+    use x86_64::structures::paging::PageTableFlags as Flags;
+    let base_page = Page::from_start_address(VirtAddr::new(xhc_mmio_base))?;
+    let base_frame = PhysFrame::from_start_address(PhysAddr::new(xhc_mmio_base))?;
+    let flags = Flags::PRESENT | Flags::WRITABLE;
+    let mut allocator = memory::lock_memory_manager()?;
+    for i in 0..16 {
+        let page = base_page + i;
+        let frame = base_frame + i;
+        unsafe { mapper.map_to(page, frame, flags, &mut *allocator) }?.flush();
+    }
     Ok(())
 }
 
+fn switch_ehci_to_xhci(devices: &[Device], xhc_dev: &Device) {
+    let intel_ehc_exists = devices.iter().any(|dev| {
+        dev.class_code.test3(0x0c, 0x03, 0x20) &&  // EHCI
+        dev.vender_id == 0x8086 // Intel
+    });
+    if !intel_ehc_exists {
+        return;
+    }
 
-// =================== private =================== //
-
-
-
-// =================== struct or enum =================== //
+    let superspeed_ports = pci::read_conf_reg(xhc_dev, 0xdc); // USB3PRM
+    pci::write_conf_reg(xhc_dev, 0xf8, superspeed_ports); // USB3_PSSEN
+    let ehci2xhci_ports = pci::read_conf_reg(xhc_dev, 0xd4); // XUSB2PRM
+    pci::write_conf_reg(xhc_dev, 0xd0, ehci2xhci_ports); // XUSB2PR
+    debug!(
+        "switch_ehci_to_xhci: SS={:2x}, xHCI={:2x}",
+        superspeed_ports, ehci2xhci_ports
+    );
+}

@@ -4,7 +4,7 @@
 use core::{
     convert::TryFrom,
     fmt, iter,
-    ops::{Add, Range, Sub},
+    ops::{Add, Range, Sub , AddAssign},
 };
 
 
@@ -230,6 +230,31 @@ where
         write!(f, "({}, {})", self.x, self.y)
     }
 }
+
+impl<T, U> Add<Vector2d<U>> for Vector2d<T>
+where
+    T: Add<U>,
+{
+    type Output = Vector2d<T::Output>;
+
+    fn add(self, rhs: Vector2d<U>) -> Self::Output {
+        Vector2d {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<T, U> AddAssign<Vector2d<U>> for Vector2d<T>
+where
+    T: AddAssign<U>,
+{
+    fn add_assign(&mut self, rhs: Vector2d<U>) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
 
 /// DrawErrorExt ///
 pub(crate) trait DrawErrorExt {

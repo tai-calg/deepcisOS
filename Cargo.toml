@@ -19,7 +19,7 @@ bootloader = "0.10.9"
 conquer-once = {version = "0.3.2", default-features = false}
 spin = "0.9.0"
 static_assertions = "1.1.0"
-x86_64 = "0.14.1"
+x86_64 = "0.14.2"
 arrayvec = {version = "0.7.0" ,default-features = false}
 bit_field = "0.10.1"
 mikanos_usb = {path = "./mikanos_usb"}

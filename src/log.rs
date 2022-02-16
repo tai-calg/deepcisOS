@@ -22,10 +22,10 @@ pub(crate) fn set_level(level: Level) {
 #[derive(Debug, Clone, Copy, PartialEq,PartialOrd, Eq, Ord)]
 #[repr(u8)]
 pub(crate) enum Level {
-    Error = 3,
-    Warn = 4,
-    Info = 6,
-    Debug = 7,
+    Error ,
+    Warn ,
+    Info ,
+    Debug ,
 }
 
 impl fmt::Display for Level {

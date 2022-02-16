@@ -48,7 +48,7 @@ pub(crate) fn read_bar(dev: &Device, bar_index: u8)->Result<u64> {
     }
 
     let addr = calc_bar_addr(bar_index);
-    let bar = read_config_reg(dev, addr);
+    let bar = read_conf_reg(dev, addr);
 
     //32bit addr
     if (bar & 4 ) == 0 {
@@ -60,7 +60,7 @@ pub(crate) fn read_bar(dev: &Device, bar_index: u8)->Result<u64> {
         bail!(ErrorKind::IndexOutofRange);
     }
 
-    let bar_upper = read_config_reg(dev, addr + 4);
+    let bar_upper = read_conf_reg(dev, addr + 4);
     Ok(u64::from(bar) | u64::from(bar_upper) << 32)
 
 }
@@ -136,8 +136,12 @@ fn calc_bar_addr(bar_index: u8)->u8 {
     0x10 + 4 * bar_index
 }
 
-fn read_config_reg(dev: &Device, reg_addr:u8) -> u32 {
+pub(crate) fn read_conf_reg(dev: &Device, reg_addr:u8) -> u32 {
     CONFIG.read(dev.addr(reg_addr))
+}
+
+pub(crate) fn write_conf_reg(dev: &Device, reg_addr: u8, value: u32) {
+    CONFIG.write(dev.addr(reg_addr), value)
 }
 
 // ==== struct or enum ==== //
@@ -252,13 +256,13 @@ impl Config {
         }
     }
     
-    // fn write(&self, addr: Addr, data: u32) {
-    //     let mut ports = self.0.lock();
-    //     unsafe {
-    //         ports.addr.write(addr.0);
-    //         ports.data.write(data)
-    //     }
-    // }
+    fn write(&self, addr: ConfigAddr, data: u32) {
+        let mut ports = self.0.lock();
+        unsafe {
+            ports.addr.write(addr.0);
+            ports.data.write(data)
+        }
+    }
 
 
 

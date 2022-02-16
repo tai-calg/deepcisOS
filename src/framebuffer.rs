@@ -5,6 +5,7 @@ use crate::graphics::{Color, Draw, Point, Rectangle};
 use crate::{make_error, Error, ErrorKind};
 use bootloader::boot_info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use conquer_once::{spin::OnceCell, TryGetError, TryInitError};
+use core::convert::TryInto;
 use core::{convert::TryFrom, fmt::{self}};
 
 
@@ -91,13 +92,7 @@ pub(crate) fn info() -> Result<&'static ScreenInfo, Error> {
 }
 
 pub(crate) fn lock_drawer() -> Result<spin::MutexGuard<'static, Drawer>, Error> {
-    // TODO: consider interrupts
-    Ok(DRAWER.try_get().convert_err()?.lock())
-}
-
-pub(crate) fn try_lock_drawer() -> Result<Option<spin::MutexGuard<'static, Drawer>>, Error> {
-    // TODO : consider interupts
-    Ok(DRAWER.try_get().convert_err()?.try_lock())
+    DRAWER.try_get().convert_err()?.try_lock().ok_or_else(|| make_error!(ErrorKind::WouldBlock("DRAWER")))
 }
 
 
